@@ -3,17 +3,70 @@ Configuration & constants for Molty Royale AI Agent.
 All env vars loaded here. Never hardcode secrets.
 """
 import os
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── Skill / API version ──────────────────────────────────────────────
-SKILL_VERSION = "3.0.0"
-
 # ── URLs ──────────────────────────────────────────────────────────────
+# Defined early so get_server_version() can reference API_BASE.
 API_BASE = "https://cdn.moltyroyale.com/api"
 WS_URL = "wss://cdn.moltyroyale.com/ws/agent"
+
+# ── Skill / API version ──────────────────────────────────────────────
+_FALLBACK_VERSION = "3.0.0"
+_cached_version: str | None = None
+
+_cfg_log = logging.getLogger(__name__)
+
+
+def get_server_version() -> str:
+    """Fetch the current skill version from the server and cache it.
+
+    Makes a plain GET /version request *without* an X-Version header to
+    avoid the circular dependency of needing a version to ask for the
+    version.  The result is cached in-process so subsequent calls are
+    free.  Falls back to ``_FALLBACK_VERSION`` if the request fails for
+    any reason.
+    """
+    global _cached_version
+    if _cached_version is not None:
+        return _cached_version
+
+    import httpx  # local import — keeps module-level import surface small
+
+    url = f"{API_BASE}/version"
+    try:
+        resp = httpx.get(url, timeout=10.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            # Response shape: {"success": true, "data": {"version": "x.y.z"}}
+            version = (
+                data.get("data", {}).get("version")
+                or data.get("version")
+            )
+            if version and isinstance(version, str):
+                _cached_version = version
+                _cfg_log.info("Server version fetched: %s", _cached_version)
+                return _cached_version
+        _cfg_log.warning(
+            "Unexpected /version response (status=%s). Using fallback %s.",
+            resp.status_code, _FALLBACK_VERSION,
+        )
+    except Exception as exc:
+        _cfg_log.warning(
+            "Could not fetch server version (%s). Using fallback %s.",
+            exc, _FALLBACK_VERSION,
+        )
+
+    _cached_version = _FALLBACK_VERSION
+    return _cached_version
+
+
+# Resolved once at import time so the rest of the codebase can still
+# reference SKILL_VERSION as a plain string constant.
+SKILL_VERSION: str = get_server_version()
 
 # ── Chain config (CROSS Mainnet) ──────────────────────────────────────
 CROSS_CHAIN_ID = 612055
