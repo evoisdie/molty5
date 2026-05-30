@@ -21,6 +21,7 @@ from bot.credentials import load_credentials, get_api_key
 from bot.config import (
     ADVANCED_MODE, ROOM_MODE, AUTO_WHITELIST,
     AUTO_SC_WALLET, ENABLE_MEMORY, AUTO_IDENTITY,
+    get_server_version,
 )
 from bot.utils.logger import get_logger
 
@@ -42,6 +43,11 @@ class Heartbeat:
         log.info("═══════════════════════════════════════════")
         log.info("  MOLTY ROYALE AI AGENT — STARTING")
         log.info("═══════════════════════════════════════════")
+
+        # Resolve server version before any API calls are made.
+        # get_server_version() is cached, so this is a one-time fetch.
+        skill_version = get_server_version()
+        log.info("  SKILL_VERSION   = %s  (fetched from server)", skill_version)
 
         # Log active config (answers to setup.md First-Run Intake)
         log.info("Config (First-Run Intake answers):")
