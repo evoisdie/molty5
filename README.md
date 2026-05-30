@@ -73,10 +73,14 @@ Go to your service → **Variables** tab → add these:
 | `LOG_LEVEL` | `INFO` | Logging level |
 | `RAILWAY_API_TOKEN` | *(see below)* | Required to auto-save credentials |
 
-**Auto-generated (DO NOT FILL):**
+**Existing account (optional — fill if you already have a Molty Royale account):**
 | Variable | Description |
 |---|---|
-| `API_KEY` | Auto-filled after POST /accounts |
+| `API_KEY` | Your existing API key — set this to skip account creation entirely |
+
+**Auto-generated (DO NOT FILL — leave blank if you don't have an existing account):**
+| Variable | Description |
+|---|---|
 | `AGENT_WALLET_ADDRESS` | Auto-generated Agent EOA |
 | `AGENT_PRIVATE_KEY` | Auto-generated Agent private key |
 | `OWNER_EOA` | Auto-generated Owner EOA |
@@ -88,6 +92,25 @@ Go to your service → **Variables** tab → add these:
 3. Add as `RAILWAY_API_TOKEN` in Variables
 
 > *Why?* The bot uses this token to automatically save its generated API Keys and wallets directly into your Railway environment variables. This ensures persistence across redeploys without needing external databases.
+
+## 🔑 Using Existing Account
+
+If you already have a Molty Royale account with an API key, you can skip the account creation flow entirely — no onboarding token needed.
+
+**Just set `API_KEY` to your existing key** in your Railway Variables (or `.env` file) and the bot will detect it at startup and use your existing account directly, bypassing `POST /accounts` altogether.
+
+```
+API_KEY=your_existing_api_key_here
+```
+
+When `API_KEY` is set, the bot:
+- Skips the entire first-run intake / account creation flow
+- Does **not** call `POST /accounts` (so no onboarding token is required)
+- Loads credentials from env vars and proceeds straight to gameplay
+
+If `API_KEY` is left empty, the bot falls back to the normal flow and creates a new account (which requires an onboarding token from Molty Royale).
+
+> **Railway Variables table update:** `API_KEY` moves from "Auto-generated" to a variable you can fill in manually if you have an existing account.
 
 ## 🏗️ Architecture
 
