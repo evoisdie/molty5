@@ -93,15 +93,54 @@ def _restore_from_env() -> dict | None:
 async def run_first_run_intake() -> dict:
     """
     First-Run Intake Flow (setup.md):
-    1. Check if env vars have existing credentials (Railway restart)
-    2. Get agent name (env → input → default)
-    3. Auto-generate Agent EOA
-    4. Auto-generate Owner EOA (advanced mode) or read from env/input
-    5. POST /accounts → save api_key
-    6. Persist credentials + intake
+    1. Check if API_KEY env var is already set (existing account — skip creation)
+    2. Check if env vars have existing credentials (Railway restart)
+    3. Get agent name (env → input → default)
+    4. Auto-generate Agent EOA
+    5. Auto-generate Owner EOA (advanced mode) or read from env/input
+    6. POST /accounts → save api_key
+    7. Persist credentials + intake
     Returns credentials dict.
     """
-    # Step 0: Check if this is a Railway restart with existing env credentials
+    # Step 0a: If API_KEY is already provided, skip account creation entirely.
+    # This allows users with an existing Molty Royale account to deploy the bot
+    # without needing an onboarding token — just set API_KEY and the bot uses
+    # that account directly.
+    existing_api_key = os.getenv("API_KEY", "")
+    if existing_api_key:
+        log.info("🔑 API_KEY detected — skipping account creation, using existing account.")
+        restored = _restore_from_env()
+        if restored:
+            return restored
+        # API_KEY is set but other credentials may be missing; build a minimal
+        # creds dict from whatever env vars are available and persist them.
+        agent_addr = os.getenv("AGENT_WALLET_ADDRESS", "")
+        agent_pk   = os.getenv("AGENT_PRIVATE_KEY", "")
+        owner_addr = os.getenv("OWNER_EOA", "")
+        owner_pk   = os.getenv("OWNER_PRIVATE_KEY", "")
+        agent_name = os.getenv("AGENT_NAME", "MoltyAgent")
+        if agent_pk and agent_addr:
+            save_agent_wallet(agent_addr, agent_pk)
+        if owner_pk and owner_addr:
+            save_owner_wallet(owner_addr, owner_pk)
+        creds = {
+            "api_key": existing_api_key,
+            "agent_name": agent_name,
+            "agent_wallet_address": agent_addr,
+            "owner_eoa": owner_addr,
+        }
+        save_credentials(creds)
+        save_owner_intake({
+            "agent_name": agent_name,
+            "advanced_mode": ADVANCED_MODE,
+            "owner_eoa": owner_addr,
+            "agent_wallet_generated": bool(agent_pk),
+            "owner_wallet_generated": bool(owner_pk),
+        })
+        log.info("✅ Using existing account from API_KEY env var — account creation skipped.")
+        return creds
+
+    # Step 0b: Check if this is a Railway restart with existing env credentials
     restored = _restore_from_env()
     if restored:
         return restored
